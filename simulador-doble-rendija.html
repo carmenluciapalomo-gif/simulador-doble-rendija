@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulador de la Doble Rendija Cuántica</title>
+<style>
+  :root{
+    --bg:#f4f6fb;
+    --panel:#ffffff;
+    --text:#1c2333;
+    --muted:#5a6478;
+    --accent:#5b6cff;
+    --accent-2:#ff5b9c;
+    --border:#e1e5f0;
+    --wave-color:#5b6cff;
+    --particle-color:#ff5b9c;
+    --track:#e6e9f5;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#12141c;
+      --panel:#1b1e2b;
+      --text:#eef0f8;
+      --muted:#9aa2b8;
+      --accent:#8b9bff;
+      --accent-2:#ff8fbf;
+      --border:#2a2f42;
+      --wave-color:#8b9bff;
+      --particle-color:#ff8fbf;
+      --track:#2a2f42;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#12141c;
+    --panel:#1b1e2b;
+    --text:#eef0f8;
+    --muted:#9aa2b8;
+    --accent:#8b9bff;
+    --accent-2:#ff8fbf;
+    --border:#2a2f42;
+    --wave-color:#8b9bff;
+    --particle-color:#ff8fbf;
+    --track:#2a2f42;
+  }
+  html{ scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height:100%;
+    padding: 20px 16px 32px;
+  }
+  .wrap{ max-width: 1100px; margin: 0 auto; }
+  header{ text-align:center; margin-bottom: 18px; }
+  h1{ font-size: clamp(1.3rem, 2.6vw, 1.9rem); margin: 0 0 6px; }
+  .subtitle{ color:var(--muted); font-size:0.95rem; max-width:640px; margin:0 auto; }
+
+  .layout{ display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+  .stage-col{ flex: 1 1 560px; min-width: 300px; }
+  .info-col{ flex: 1 1 320px; min-width: 280px; }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:16px;
+  }
+
+  .canvas-wrap{ position:relative; width:100%; aspect-ratio: 800/450; border-radius:12px; overflow:hidden; background: var(--bg); border:1px solid var(--border); }
+  .canvas-wrap canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+  .controls{ margin-top:14px; display:flex; flex-direction:column; gap:12px; }
+  .row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+  .toggle{
+    display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;
+    background: var(--track); padding:10px 14px; border-radius:12px; flex:1 1 auto;
+  }
+  .switch{ position:relative; width:44px; height:24px; flex:0 0 auto; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .slider-pill{
+    position:absolute; inset:0; background:#b7bdd6; border-radius:999px; transition:.2s;
+  }
+  .slider-pill:before{
+    content:""; position:absolute; width:18px; height:18px; left:3px; top:3px;
+    background:white; border-radius:50%; transition:.2s;
+  }
+  .switch input:checked + .slider-pill{ background: var(--particle-color); }
+  .switch input:checked + .slider-pill:before{ transform: translateX(20px); }
+  .toggle-label{ font-size:0.92rem; font-weight:600; }
+  .toggle-sub{ font-size:0.78rem; color:var(--muted); display:block; margin-top:1px; }
+
+  button{
+    border:none; border-radius:10px; padding:10px 16px; font-size:0.9rem; font-weight:600;
+    cursor:pointer; background:var(--accent); color:white; transition: transform .1s, opacity .1s;
+  }
+  button:active{ transform: scale(0.97); }
+  button.secondary{ background: var(--track); color: var(--text); }
+
+  .slider-row{ flex:1 1 200px; display:flex; align-items:center; gap:10px; }
+  .slider-row label{ font-size:0.85rem; color:var(--muted); white-space:nowrap; }
+  input[type="range"]{ flex:1; accent-color: var(--accent); }
+
+  .stats{ display:flex; gap:16px; flex-wrap:wrap; font-size:0.85rem; color:var(--muted); margin-top:2px; }
+  .stats b{ color: var(--text); font-variant-numeric: tabular-nums; }
+
+  .mode-badge{
+    display:inline-block; padding:4px 10px; border-radius:999px; font-size:0.78rem; font-weight:700;
+    margin-top:8px;
+  }
+  .mode-wave{ background: color-mix(in srgb, var(--wave-color) 20%, transparent); color: var(--wave-color); }
+  .mode-particle{ background: color-mix(in srgb, var(--particle-color) 20%, transparent); color: var(--particle-color); }
+
+  .info-col h2{ font-size:1.05rem; margin:0 0 8px; }
+  .info-col p{ font-size:0.9rem; line-height:1.55; color: var(--text); margin: 0 0 12px; }
+  .info-col .highlight{ color: var(--accent); font-weight:700; }
+  .info-col .highlight2{ color: var(--accent-2); font-weight:700; }
+  .divider{ height:1px; background:var(--border); margin: 14px 0; }
+  .mini-title{ font-size:0.8rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin: 0 0 8px; font-weight:700; }
+
+  @media (max-width: 640px){
+    .layout{ flex-direction:column; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔬 Simulador de la Doble Rendija Cuántica</h1>
+    <p class="subtitle">Dispara partículas una por una y descubre cómo cambia el resultado cuando decides "mirar" por dónde pasan.</p>
+  </header>
+
+  <div class="layout">
+    <div class="stage-col">
+      <div class="panel">
+        <div class="canvas-wrap">
+          <canvas id="baseCanvas" width="800" height="450"></canvas>
+          <canvas id="accumCanvas" width="800" height="450"></canvas>
+        </div>
+
+        <div class="controls">
+          <div class="row">
+            <label class="toggle">
+              <span class="switch">
+                <input type="checkbox" id="observerToggle">
+                <span class="slider-pill"></span>
+              </span>
+              <span>
+                <span class="toggle-label">👁️ Observar por qué rendija pasa cada partícula</span>
+                <span class="toggle-sub">Actívalo para "medir" el camino de cada partícula</span>
+              </span>
+            </label>
+          </div>
+
+          <div class="row">
+            <button id="playBtn">⏸️ Pausar</button>
+            <button id="resetBtn" class="secondary">🔄 Reiniciar patrón</button>
+            <div class="slider-row">
+              <label for="speed">Velocidad</label>
+              <input type="range" id="speed" min="1" max="30" value="10">
+            </div>
+          </div>
+
+          <div class="stats">
+            <span>Partículas disparadas: <b id="countStat">0</b></span>
+            <span>Modo actual:
+              <span id="modeBadge" class="mode-badge mode-wave">Onda (superposición)</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-col">
+      <div class="panel">
+        <p class="mini-title">¿Qué está pasando?</p>
+        <h2>Un experimento, dos mundos</h2>
+        <p>Cada partícula sale de la fuente (izquierda) y pasa por una pared con dos rendijas antes de llegar a la pantalla (derecha), donde va dejando una marca.</p>
+        <p>
+          Cuando <span class="highlight">nadie observa</span> por cuál rendija pasa, cada partícula se comporta como una <span class="highlight">onda</span>: pasa un poco por las dos rendijas a la vez (esto se llama <b>superposición</b>) y las dos partes de la onda interfieren entre sí. Con el tiempo, esto forma un patrón de rayas claras y oscuras: el <b>patrón de interferencia</b>.
+        </p>
+        <p>
+          Pero en cuanto <span class="highlight2">activas el "observador"</span>, cada partícula es forzada a elegir una sola rendija, como si fuera una bolita clásica. El patrón de interferencia desaparece y en su lugar aparecen solo <b>dos franjas</b>, una detrás de cada rendija.
+        </p>
+        <div class="divider"></div>
+        <p class="mini-title">La idea clave</p>
+        <p>El simple hecho de <b>medir</b> u <b>observar</b> el sistema cambia su comportamiento. Esto se conoce como <b>colapso de la función de onda</b>, y es una de las ideas más extrañas y fascinantes de la mecánica cuántica.</p>
+        <p style="font-size:0.78rem; color:var(--muted); margin-bottom:0;">Nota: esta es una versión simplificada y visual del experimento, pensada para entender la idea principal, no para hacer cálculos precisos.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const baseCanvas = document.getElementById('baseCanvas');
+  const accumCanvas = document.getElementById('accumCanvas');
+  const bctx = baseCanvas.getContext('2d');
+  const actx = accumCanvas.getContext('2d');
+
+  const W = 800, H = 450;
+  const sourceX = 55, centerY = 225;
+  const barrierX = 330;
+  const screenX = 745;
+  const slitOffset = 55;   // distance of each slit from center
+  const slitHalf = 16;     // visual half-height of each slit gap
+
+  const observerToggle = document.getElementById('observerToggle');
+  const playBtn = document.getElementById('playBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const speedSlider = document.getElementById('speed');
+  const countStat = document.getElementById('countStat');
+  const modeBadge = document.getElementById('modeBadge');
+
+  let running = true;
+  let particleCount = 0;
+  let lastEmit = 0;
+  let particles = []; // in-flight
+
+  function getCSS(varName){
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  }
+
+  // ---- Probability distributions (y relative to centerY, range -200..200) ----
+  const RANGE = 200;
+  function pdfWave(y){
+    // interference fringes with gaussian envelope
+    return Math.pow(Math.cos(y/14), 2) * Math.exp(-(y*y)/(2*170*170));
+  }
+  function pdfParticle(y){
+    // two classical bands centered at +/- slitOffset-ish spread
+    const s = 35;
+    return Math.exp(-((y-58)*(y-58))/(2*s*s)) + Math.exp(-((y+58)*(y+58))/(2*s*s));
+  }
+
+  function buildCumulative(pdfFn){
+    const bins = [];
+    let total = 0;
+    for(let y=-RANGE; y<=RANGE; y++){
+      const v = pdfFn(y);
+      total += v;
+      bins.push(total);
+    }
+    return { bins, total };
+  }
+
+  let waveDist = buildCumulative(pdfWave);
+  let particleDist = buildCumulative(pdfParticle);
+
+  function sampleY(observed){
+    const dist = observed ? particleDist : waveDist;
+    const r = Math.random() * dist.total;
+    // binary search
+    let lo = 0, hi = dist.bins.length - 1;
+    while(lo < hi){
+      const mid = (lo + hi) >> 1;
+      if(dist.bins[mid] < r) lo = mid + 1; else hi = mid;
+    }
+    const y = -RANGE + lo;
+    return y + (Math.random() - 0.5); // small jitter
+  }
+
+  // ---- Drawing static apparatus ----
+  function drawApparatus(){
+    bctx.clearRect(0,0,W,H);
+    const border = getCSS('--border') || '#ccc';
+    const muted = getCSS('--muted') || '#888';
+    const text = getCSS('--text') || '#222';
+
+    // source
+    bctx.fillStyle = text;
+    bctx.beginPath();
+    bctx.arc(sourceX, centerY, 8, 0, Math.PI*2);
+    bctx.fill();
+    bctx.fillStyle = muted;
+    bctx.font = '12px sans-serif';
+    bctx.textAlign = 'center';
+    bctx.fillText('Fuente', sourceX, centerY + 28);
+
+    // barrier with two slits
+    bctx.strokeStyle = text;
+    bctx.lineWidth = 6;
+    bctx.beginPath();
+    bctx.moveTo(barrierX, 0);
+    bctx.lineTo(barrierX, centerY - slitOffset - slitHalf);
+    bctx.stroke();
+    bctx.beginPath();
+    bctx.moveTo(barrierX, centerY - slitOffset + slitHalf);
+    bctx.lineTo(barrierX, centerY + slitOffset - slitHalf);
+    bctx.stroke();
+    bctx.beginPath();
+    bctx.moveTo(barrierX, centerY + slitOffset + slitHalf);
+    bctx.lineTo(barrierX, H);
+    bctx.stroke();
+
+    bctx.fillStyle = muted;
+    bctx.fillText('Rendijas', barrierX, 24);
+
+    // screen line
+    bctx.strokeStyle = border;
+    bctx.lineWidth = 3;
+    bctx.beginPath();
+    bctx.moveTo(screenX, 20);
+    bctx.lineTo(screenX, H - 20);
+    bctx.stroke();
+    bctx.fillStyle = muted;
+    bctx.fillText('Pantalla', screenX, H - 4);
+  }
+
+  function slitY(sign){ return centerY + sign*slitOffset; }
+
+  // ---- Particle emission ----
+  function emitParticle(){
+    const observed = observerToggle.checked;
+    const yOffset = sampleY(observed);
+    const landingY = centerY + yOffset;
+    let path;
+    if(observed){
+      const sign = yOffset >= 0 ? 1 : -1;
+      path = { type:'particle', slitY: slitY(sign) };
+    } else {
+      path = { type:'wave' };
+    }
+    particles.push({
+      startTime: performance.now(),
+      duration: 900,
+      landingY,
+      path
+    });
+    particleCount++;
+    countStat.textContent = particleCount;
+  }
+
+  function lerp(a,b,t){ return a + (b-a)*t; }
+
+  function stampHit(y){
+    const particleColor = getCSS('--particle-color') || '#ff5b9c';
+    actx.fillStyle = particleColor;
+    actx.globalAlpha = 0.16;
+    actx.beginPath();
+    actx.arc(screenX - 3, y, 2.4, 0, Math.PI*2);
+    actx.fill();
+    actx.globalAlpha = 1;
+  }
+
+  function drawParticles(now){
+    const waveColor = getCSS('--wave-color') || '#5b6cff';
+    const particleColor = getCSS('--particle-color') || '#ff5b9c';
+
+    for(let i = particles.length - 1; i >= 0; i--){
+      const p = particles[i];
+      const t = Math.min(1, (now - p.startTime) / p.duration);
+
+      if(p.path.type === 'particle'){
+        bctx.strokeStyle = particleColor;
+        bctx.globalAlpha = 0.35;
+        bctx.lineWidth = 1.5;
+        bctx.beginPath();
+        bctx.moveTo(sourceX, centerY);
+        bctx.lineTo(barrierX, p.path.slitY);
+        bctx.lineTo(screenX, p.landingY);
+        bctx.stroke();
+        bctx.globalAlpha = 1;
+
+        let x, y;
+        if(t < 0.45){
+          const lt = t/0.45;
+          x = lerp(sourceX, barrierX, lt);
+          y = lerp(centerY, p.path.slitY, lt);
+        } else {
+          const lt = (t-0.45)/0.55;
+          x = lerp(barrierX, screenX, lt);
+          y = lerp(p.path.slitY, p.landingY, lt);
+        }
+        bctx.fillStyle = particleColor;
+        bctx.beginPath();
+        bctx.arc(x, y, 4, 0, Math.PI*2);
+        bctx.fill();
+
+      } else {
+        // wave mode: ghost paths through both slits
+        bctx.strokeStyle = waveColor;
+        bctx.globalAlpha = 0.22;
+        bctx.lineWidth = 1.2;
+        [1,-1].forEach(sign=>{
+          bctx.beginPath();
+          bctx.moveTo(sourceX, centerY);
+          bctx.lineTo(barrierX, slitY(sign));
+          bctx.lineTo(screenX, p.landingY);
+          bctx.stroke();
+        });
+        bctx.globalAlpha = 1;
+
+        const x = lerp(sourceX, screenX, t);
+        const y = lerp(centerY, p.landingY, t);
+        bctx.fillStyle = waveColor;
+        bctx.beginPath();
+        bctx.arc(x, y, 4, 0, Math.PI*2);
+        bctx.fill();
+      }
+
+      if(t >= 1){
+        stampHit(p.landingY);
+        particles.splice(i,1);
+      }
+    }
+  }
+
+  function updateModeBadge(){
+    if(observerToggle.checked){
+      modeBadge.textContent = 'Partícula (colapsada)';
+      modeBadge.className = 'mode-badge mode-particle';
+    } else {
+      modeBadge.textContent = 'Onda (superposición)';
+      modeBadge.className = 'mode-badge mode-wave';
+    }
+  }
+
+  function resetPattern(){
+    actx.clearRect(0,0,W,H);
+    particles = [];
+    particleCount = 0;
+    countStat.textContent = 0;
+  }
+
+  observerToggle.addEventListener('change', ()=>{
+    updateModeBadge();
+    resetPattern();
+  });
+
+  playBtn.addEventListener('click', ()=>{
+    running = !running;
+    playBtn.textContent = running ? '⏸️ Pausar' : '▶️ Reanudar';
+  });
+
+  resetBtn.addEventListener('click', resetPattern);
+
+  function loop(now){
+    drawApparatus();
+    if(running){
+      const rate = parseInt(speedSlider.value, 10); // particles per second
+      const interval = 1000 / rate;
+      if(now - lastEmit > interval){
+        emitParticle();
+        lastEmit = now;
+      }
+    }
+    drawParticles(now);
+    requestAnimationFrame(loop);
+  }
+
+  updateModeBadge();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
